@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -23,6 +22,19 @@ contract SwapIt {
         _;
     }
 
+    function setFees(uint256 _fees) public onlyOwner {
+        require(fees > 0 , "Fees must be greater than 0");
+        fees = _fees;
+    }
+
+// Views 
+    function calculateFeesAndApplicableSwapAmount(uint256 amountIn) public view returns (uint256, uint256) {
+        uint256 feesAmount = (amountIn * fees)/100;
+        uint256 applicableSwapAmount = amountIn - feesAmount;
+
+        return (feesAmount, applicableSwapAmount);
+    }
+
     function getExptedAmount(uint256 token0Amount, address token0Addr, address token1Addr) public view returns (uint256 ){
         address[] memory path = new address[](2);
         path[0] = token0Addr;
@@ -32,11 +44,22 @@ contract SwapIt {
         return amounts[1];
     }
 
+    function getBalances() public view returns (address[] memory token, uint256[] memory balance) {
+        uint n = ownedTokens.length();
+        for(uint i=0 ; i < n ; i++){
+            IERC20 _token = IERC20(ownedTokens.at(i));
+            uint256 bal = _token.balanceOf(address(this));
+
+            token[i] = ownedTokens.at(i);
+            balance[i] = bal;
+        }     
+    }
+
+// Core Functions.
     function swapTokensForToken(address token0Addr, address token1Addr, uint256 token0Amount, uint56 amountOutMin, address to) public returns (uint256 ) {
 
         require(IERC20(token0Addr).transferFrom(msg.sender, address(this), token0Amount), "Token transferFrom failed.");
-        uint256 feesAmount = (token0Amount * fees)/100;
-        uint256 applicableSwapAmount = token0Amount - feesAmount;
+        (uint256 feesAmount, uint256 applicableSwapAmount) = calculateFeesAndApplicableSwapAmount(token0Amount);
 
         require(IERC20(token0Addr).approve(address(router), applicableSwapAmount));
         
@@ -52,10 +75,9 @@ contract SwapIt {
     function swapTokensForEth(address tokenAddr, uint256 amountIn, uint56 amountOutMin, address to) public returns (uint256 ) {
 
         require(IERC20(tokenAddr).transferFrom(msg.sender, address(this), amountIn), "Token transferFrom failed.");
-        uint256 feesAmount = (amountIn * fees)/100;
-        uint256 applicableSwapAmount = amountIn - feesAmount;
-        
+        (uint256 feesAmount, uint256 applicableSwapAmount) = calculateFeesAndApplicableSwapAmount(amountIn);   
         require(IERC20(tokenAddr).approve(address(router), applicableSwapAmount));
+
         address[] memory path = new address[](2);
         path[0] = tokenAddr;
         path[1] = router.WETH();
@@ -72,8 +94,7 @@ contract SwapIt {
         address[] memory path = new address[](2);
         path[0] = router.WETH();
         path[1] = tokenAddr;
-        uint256 feesAmount = (amountIn * fees)/100;
-        uint256 applicableSwapAmount = amountIn - feesAmount;
+        (, uint256 applicableSwapAmount) = calculateFeesAndApplicableSwapAmount(amountIn);
         require(applicableSwapAmount > 0 , "Not enough fund sent to swap");
 
         uint[] memory amounts = router.swapExactETHForTokens{value: applicableSwapAmount}(amountOutMin, path, to, block.timestamp + 2 minutes);
@@ -89,6 +110,7 @@ contract SwapIt {
             if(balance > 0){
                 token.transfer(owner, balance);
             }
+            ownedTokens.remove(address(token));
         }
     } 
 }
