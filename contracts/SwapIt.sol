@@ -46,6 +46,8 @@ contract SwapIt {
 
     function getBalances() public view returns (address[] memory token, uint256[] memory balance) {
         uint n = ownedTokens.length();
+        token = new address[](n);
+        balance = new uint256[](n);
         for(uint i=0 ; i < n ; i++){
             IERC20 _token = IERC20(ownedTokens.at(i));
             uint256 bal = _token.balanceOf(address(this));
@@ -59,7 +61,7 @@ contract SwapIt {
     function swapTokensForToken(address token0Addr, address token1Addr, uint256 token0Amount, uint56 amountOutMin, address to) public returns (uint256 ) {
 
         require(IERC20(token0Addr).transferFrom(msg.sender, address(this), token0Amount), "Token transferFrom failed.");
-        (uint256 feesAmount, uint256 applicableSwapAmount) = calculateFeesAndApplicableSwapAmount(token0Amount);
+        (, uint256 applicableSwapAmount) = calculateFeesAndApplicableSwapAmount(token0Amount);
 
         require(IERC20(token0Addr).approve(address(router), applicableSwapAmount));
         
@@ -75,7 +77,7 @@ contract SwapIt {
     function swapTokensForEth(address tokenAddr, uint256 amountIn, uint56 amountOutMin, address to) public returns (uint256 ) {
 
         require(IERC20(tokenAddr).transferFrom(msg.sender, address(this), amountIn), "Token transferFrom failed.");
-        (uint256 feesAmount, uint256 applicableSwapAmount) = calculateFeesAndApplicableSwapAmount(amountIn);   
+        (, uint256 applicableSwapAmount) = calculateFeesAndApplicableSwapAmount(amountIn);   
         require(IERC20(tokenAddr).approve(address(router), applicableSwapAmount));
 
         address[] memory path = new address[](2);
@@ -110,7 +112,8 @@ contract SwapIt {
             if(balance > 0){
                 token.transfer(owner, balance);
             }
-            ownedTokens.remove(address(token));
         }
     } 
 }
+
+// 0xf8c3B2C4F3F48af50320B1946A134841895f3d15

@@ -9,12 +9,12 @@ const config: HardhatUserConfig = {
   solidity: "0.8.28",
   networks: {
     localhost: {
-      url: 'https://sepolia.infura.io/v3/716bdb39b2f84516b3cedcfb3c2d2c19',
+      url: 'http://127.0.0.1:7545',
       chainId: 11155111,
       accounts: [localAccount],
     },
     sepolia: {
-      url: 'http://127.0.0.1:7545',
+      url: 'https://sepolia.infura.io/v3/716bdb39b2f84516b3cedcfb3c2d2c19',
       accounts: [realAccount]
     }
   }
